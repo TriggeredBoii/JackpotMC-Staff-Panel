@@ -1,37 +1,27 @@
-# Staff Panel ↔ Staff Bot integration
+# Staff Panel and Staff Bot integration
 
-The existing Discord commands remain enabled. The website is an additional interface; it does not replace `/punish` or the other JDA listeners.
+The website is an additional interface. Existing Discord commands remain enabled.
 
-## Configure once
+## Transport
 
-Use the same long random `STAFF_PANEL_ACTION_SECRET` in both environments. Do not commit it.
+The production transport is outbound-only:
 
-### Staff Panel `.dev.vars` / Cloudflare secrets
-- `REDIS_HOST`
-- `REDIS_PORT=6379`
-- `REDIS_PASSWORD`
-- `STAFF_PANEL_ACTION_SECRET`
-- existing Discord OAuth/session variables
+Browser -> Cloudflare Worker -> Durable Object bridge <- Java Staff Bot
 
-### Staff Bot / Pterodactyl environment
-- `STAFF_PANEL_ACTION_SECRET`
-- `STAFF_PANEL_OWNER_DISCORD_IDS=323471274586275840` (comma-separated owners)
+The Staff Bot polls `POST /internal/bot/poll` and submits results to `POST /internal/bot/result` using `STAFF_PANEL_BOT_TOKEN` as a Bearer token. No inbound Pterodactyl port and no public Redis transport are required.
 
-Owners automatically pass Staff Panel permission checks. Other linked staff can be granted granular permissions in Redis sets:
+## Action security
 
-- key: `staffpanel:permissions:<discordId>`
-- current permissions: `panel.access`, `punishment.view`, `punishment.execute`
+Staff actions use protocol v2. The Worker signs each short-lived action envelope with HMAC-SHA-512. The Java bot validates the action ID, nonce, actor Discord ID, action, payload hash, signature, timestamps, replay protection, account link, staff status, permissions and rate limits before executing it.
 
-Example Redis commands for a non-owner staff member:
+The Worker and Java bot must share:
 
-    SADD staffpanel:permissions:DISCORD_ID panel.access punishment.view punishment.execute
+- `STAFF_PANEL_HMAC_KEY_ID`
+- `STAFF_PANEL_HMAC_KEY`
+- `STAFF_PANEL_BOT_TOKEN`
 
-## Punishment UX
+Do not commit these values.
 
-The website only asks for username + punishment type. The Staff Bot calculates the next offense, configured punishment kind, generated reason and duration using the existing punishment configuration. Discord `/punish` remains unchanged.
+## Authorization
 
-## Security
-
-The browser never supplies a trusted actor ID. The Worker takes the actor from the encrypted OAuth session, signs a short-lived action envelope with HMAC-SHA256, and publishes it to Redis. The bot verifies the signature, expiry, linked Minecraft account and permission, then atomically claims the action ID before executing it. Results are returned through a short-lived Redis key.
-
-For production, do not expose plaintext Redis directly to the public Internet. Use TLS and ACLs/network restriction, or place Redis behind a private tunnel/gateway. The HMAC protects Staff Panel actions from forged Redis messages, but it does not encrypt the Redis password or traffic.
+The browser never supplies a trusted actor identity. The Worker takes the Discord ID from the encrypted OAuth session. The Java Staff Bot remains the final authorization authority for every action.

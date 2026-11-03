@@ -1,58 +1,38 @@
-# First setup checklist
+# Production setup checklist
 
-## 1. Local
+## GitHub
 
-```powershell
-npm install
-Copy-Item .env.example .dev.vars
-```
+- Keep `main` as the production branch.
+- Do not commit `.dev.vars`, `.env`, credentials, tokens, or keys.
+- Run `npm run typecheck`, `npm test`, and `npm run build` before deployment.
 
-Create a Discord application, copy its Application ID and Client Secret into `.dev.vars`, add `http://localhost:5173/auth/callback` as an OAuth2 redirect, and put your Discord user ID in BOTH allowlist variables. Generate a long random session secret, then:
+## Discord OAuth
 
-```powershell
-npm run dev
-```
+Register this redirect URI in the Discord application:
 
-Expected security tests:
-- `/login` is reachable.
-- `/` without a session redirects to `/login` at the Worker layer.
-- `/api/me` without a session returns 401.
-- A Discord ID missing from either allowlist is redirected to `/denied`.
-- An allowed + linked Discord ID reaches the panel.
-- Editing frontend state cannot make `/api/me` authenticate.
+`https://staff.jackpotmc.com/auth/callback`
 
-## 2. GitHub
+No localhost or workers.dev OAuth callback is required.
 
-```powershell
-git init
-git checkout -b main
-git add .
-git commit -m "Initial secure JackpotMC staff panel"
-git remote add origin YOUR_GITHUB_REPO_URL
-git push -u origin main
-git checkout -b dev
-git push -u origin dev
-```
+## Cloudflare Worker
 
-Never commit `.dev.vars`.
+Connect the GitHub repository to Cloudflare Workers Builds.
 
-## 3. Cloudflare test deployment
+- Worker: `jackpotmc-staff-panel`
+- Production branch: `main`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Custom domain: `staff.jackpotmc.com`
 
-In Cloudflare: Workers & Pages -> Create application -> GitHub -> select this repo. The Worker name MUST be `jackpotmc-staff-panel`. Use `main` as production and enable preview builds for other branches. Add the production/test environment variables and secrets in Cloudflare, not Git.
+Configure the required production secrets listed in `README.md` directly in Cloudflare.
 
-For early testing, keep `staff.jackpotmc.com` unchanged and use the Worker/preview URLs. Add each exact Cloudflare OAuth callback URL to the Discord application before testing OAuth there.
+The Durable Object binding and migration are already defined in `wrangler.jsonc`.
 
-## 4. Promotion
+## Staff Bot
 
-Develop locally -> feature branch -> push -> Cloudflare preview -> merge to `dev` -> test -> merge to `main` -> production deploy.
+The bot must continue polling the Worker over outbound HTTPS using:
 
-## 5. Rollback
+- `POST /internal/bot/poll`
+- `POST /internal/bot/result`
 
-Emergency:
-
-```powershell
-npx wrangler deployments list
-npx wrangler rollback VERSION_ID
-```
-
-Then revert the bad Git commit and push `main` so Git and production agree again.
+The bot and Worker must use the same `STAFF_PANEL_BOT_TOKEN`, HMAC key ID, and HMAC key.

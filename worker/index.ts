@@ -47,7 +47,7 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
  if(url.pathname==='/auth/login') return login(request,env);
  if(url.pathname==='/auth/callback') return callback(request,env);
  if(url.pathname==='/auth/logout') return logout(request);
- if(url.pathname==='/api/health') return Response.json({status:'ok',service:'jackpotmc-staff-panel',environment:env.APP_ENV||'unknown',protocol:2});
+ if(url.pathname==='/api/health') return Response.json({status:'ok',service:'jackpotmc-staff-panel',environment:'production',protocol:2});
  if(url.pathname==='/api/me'){ const s=await session(request,env); return s?Response.json({authenticated:true,user:{id:s.sub,username:s.username,displayName:s.displayName,avatar:s.avatar},csrf:s.csrf}):Response.json({authenticated:false},{status:401}); }
  if(url.pathname.startsWith('/api/')){
    const a=await requireSession(request,env); if(!a.ok)return a.response;
