@@ -1,7 +1,7 @@
 import type { DiscordUser, Env, SessionPayload } from '../types';
 import { clearSession, clearState, cookies, sessionCookie, stateCookie } from '../security/cookies';
 import { isAllowed } from '../security/auth';
-import { botAction } from '../redis';
+import { botAction } from '../bridge';
 import { randomToken, seal, unseal } from '../security/crypto';
 const DISCORD_REDIRECT_URI='https://staff.jackpotmc.com/auth/callback';
 export async function login(_request:Request,env:Env){ const state=randomToken(); const stateValue=await seal({state,exp:Date.now()+600_000},env.SESSION_SECRET); const q=new URLSearchParams({client_id:env.DISCORD_CLIENT_ID,response_type:'code',redirect_uri:DISCORD_REDIRECT_URI,scope:'identify',state,prompt:'consent'}); return new Response(null,{status:302,headers:{Location:`https://discord.com/oauth2/authorize?${q}`, 'Set-Cookie':stateCookie(stateValue)}}); }
