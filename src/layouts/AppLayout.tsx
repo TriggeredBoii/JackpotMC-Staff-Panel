@@ -1,0 +1,2 @@
+import {Outlet} from 'react-router-dom';import Sidebar from '../components/Sidebar';import {useAuth} from '../auth/useAuth';
+export default function AppLayout(){const {me,loading}=useAuth();if(loading)return <div className="center">Checking secure session…</div>;if(!me){location.href='/login';return null}return <div className="shell"><Sidebar/><main><header><div><span className="env">DEVELOPMENT</span></div><div className="user"><div><b>{me.user.displayName}</b><span>{me.user.username}</span></div><a href="/auth/logout">Sign out</a></div></header><Outlet/></main></div>}

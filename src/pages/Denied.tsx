@@ -1,0 +1,1 @@
+export default function Denied(){return <div className="login"><div className="loginCard"><h1>Access denied</h1><p>Your Discord account is not authorized and linked for this staff panel.</p><a className="discord" href="/auth/login">Try another Discord account</a></div></div>}
