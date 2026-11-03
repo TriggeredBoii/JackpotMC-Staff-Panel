@@ -3,7 +3,7 @@ export interface Env {
   DISCORD_CLIENT_SECRET: string;
   SESSION_SECRET: string;
 
-  ALLOWED_DISCORD_IDS: string;
+
 
   STAFF_PANEL_HMAC_KEY_ID: string;
   STAFF_PANEL_HMAC_KEY: string;

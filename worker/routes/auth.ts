@@ -1,6 +1,5 @@
 import type { DiscordUser, Env, SessionPayload } from '../types';
 import { clearSession, clearState, cookies, sessionCookie, stateCookie } from '../security/cookies';
-import { isAllowed } from '../security/auth';
 import { botAction } from '../bridge';
 import { randomToken, seal, unseal } from '../security/crypto';
 const DISCORD_REDIRECT_URI='https://staff.jackpotmc.com/auth/callback';
@@ -9,7 +8,6 @@ export async function callback(request:Request,env:Env){ const url=new URL(reque
  const body=new URLSearchParams({client_id:env.DISCORD_CLIENT_ID,client_secret:env.DISCORD_CLIENT_SECRET,grant_type:'authorization_code',code,redirect_uri:DISCORD_REDIRECT_URI});
  const tr=await fetch('https://discord.com/api/v10/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}); if(!tr.ok)return new Response('Discord token exchange failed.',{status:502}); const token=await tr.json() as {access_token:string;token_type:string};
  const ur=await fetch('https://discord.com/api/v10/users/@me',{headers:{Authorization:`Bearer ${token.access_token}`}}); if(!ur.ok)return new Response('Discord identity lookup failed.',{status:502}); const user=await ur.json() as DiscordUser;
- if(!isAllowed(env,user.id)) return new Response(null,{status:302,headers:{Location:'/denied','Set-Cookie':clearState()}});
- const authz=await botAction(env,user.id,'staff.status',{}); if(!authz.ok) return new Response(null,{status:302,headers:{Location:'/denied','Set-Cookie':clearState()}});
- const now=Date.now(); const payload:SessionPayload={v:1,sub:user.id,username:user.username,displayName:user.global_name||user.username,avatar:user.avatar||null,csrf:randomToken(),iat:now,exp:now+7_200_000}; const tokenCookie=await seal(payload,env.SESSION_SECRET); const headers=new Headers({Location:'/'}); headers.append('Set-Cookie',clearState()); headers.append('Set-Cookie',sessionCookie(tokenCookie)); return new Response(null,{status:302,headers}); }
+ const now=Date.now(); const authz=await botAction(env,user.id,'staff.status',{sessionIssuedAt:now}); const status=authz.data as {panelAccess?:boolean;breakGlass?:boolean}|undefined; if(!authz.ok||status?.panelAccess!==true) return new Response(null,{status:302,headers:{Location:'/denied','Set-Cookie':clearState()}});
+ const payload:SessionPayload={v:1,sub:user.id,username:user.username,displayName:user.global_name||user.username,avatar:user.avatar||null,csrf:randomToken(),iat:now,exp:now+(status?.breakGlass?600_000:7_200_000)}; const tokenCookie=await seal(payload,env.SESSION_SECRET); const headers=new Headers({Location:'/'}); headers.append('Set-Cookie',clearState()); headers.append('Set-Cookie',sessionCookie(tokenCookie,status?.breakGlass?600:7200)); return new Response(null,{status:302,headers}); }
 export function logout(){ return new Response(null,{status:302,headers:{Location:'/login','Set-Cookie':clearSession()}}); }
