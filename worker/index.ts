@@ -82,8 +82,23 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    }
    return Response.json({error:'not_found'},{status:404});
  }
- if(url.pathname==='/login'||url.pathname==='/denied') return env.ASSETS.fetch(request);
- const s=await session(request,env); if(!s) return Response.redirect(`${url.origin}/login`,302);
+// Public pages and static frontend assets
+if (
+   url.pathname === '/login' ||
+   url.pathname === '/denied' ||
+   url.pathname === '/favicon.ico' ||
+   url.pathname.startsWith('/assets/')
+ ) {
+   return env.ASSETS.fetch(request);
+ }
+ 
+ // All other frontend pages require authentication
+ const s = await session(request, env);
+ 
+ if (!s) {
+   return Response.redirect(`${url.origin}/login`, 302);
+ }
+ 
  return env.ASSETS.fetch(request);
 }
 export default { async fetch(request:Request,env:Env){ try{return harden(await app(request,env));}catch(e){console.error(e instanceof Error?e.message:'internal error');return harden(Response.json({error:'internal_server_error'},{status:500}));} } };
