@@ -5,13 +5,21 @@ type Result={ok:boolean;data?:unknown;message?:string};
 type Snapshot={types:string[];categories:Record<string,Category>;loaded:boolean;error:string|null};
 const EMPTY:Snapshot={types:[],categories:{},loaded:false,error:null};
 let snapshot:Snapshot=EMPTY;
+let accountKey:string|null=null;
+export function setPunishmentCatalogAccount(id:string|null){
+ const next=id?`jackpotmc:catalog:v1:${id}`:null;
+ if(accountKey===next)return;
+ accountKey=next;snapshot=EMPTY;lastSuccess=0;
+ if(next){try{const raw=sessionStorage.getItem(next)||localStorage.getItem(next);if(raw){const cached=JSON.parse(raw) as Snapshot;if(cached.loaded&&Array.isArray(cached.types)&&cached.categories&&typeof cached.categories==='object')snapshot={...cached,error:null}}}catch{/* Ignore corrupted cache. */}}
+ notify();
+}
 let inflight:Promise<void>|null=null;
 let lastSuccess=0;
 const listeners=new Set<()=>void>();
 const notify=()=>{for(const listener of listeners)listener()};
 const TTL=30_000;
 
-export function clearPunishmentCatalog(){snapshot=EMPTY;lastSuccess=0;notify()}
+export function clearPunishmentCatalog(){if(accountKey){try{localStorage.removeItem(accountKey);sessionStorage.removeItem(accountKey)}catch{}}snapshot=EMPTY;lastSuccess=0;notify()}
 export async function refreshPunishmentCatalog(force=false):Promise<void>{
  if(inflight)return inflight;
  if(!force&&snapshot.loaded&&Date.now()-lastSuccess<TTL)return;
@@ -28,6 +36,7 @@ export async function refreshPunishmentCatalog(force=false):Promise<void>{
    const categories:Record<string,Category>={};
    for(const [name,category] of Object.entries(categoriesResult.data))if(category==='mute'||category==='ban'||category==='warn')categories[name]=category;
    snapshot={types:typesResult.data.filter((x):x is string=>typeof x==='string'),categories,loaded:true,error:null};
+   if(accountKey){try{localStorage.setItem(accountKey,JSON.stringify(snapshot))}catch{/* Cache is optional. */}}
    lastSuccess=Date.now();notify();
   }catch(e){snapshot={...snapshot,error:e instanceof Error?e.message:'Could not load punishment categories.'};notify()}
  })().finally(()=>{inflight=null});

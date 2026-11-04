@@ -74,6 +74,16 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    if(url.pathname==='/api/bot/status'&&request.method==='GET'){
      const result=await botAction(env,a.session.sub,'staff.status',{sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:403});
    }
+   if(['/api/punishments/check','/api/alts','/api/alts/history','/api/monitoring'].includes(url.pathname)&&request.method==='GET'){
+     const username=url.searchParams.get('username')||'';
+     const isMonitor=url.pathname==='/api/monitoring';
+     if(!isMonitor&&!/^[A-Za-z0-9_]{3,16}$/.test(username))return Response.json({ok:false,message:'Invalid Minecraft username.'},{status:400});
+     const action=url.pathname==='/api/punishments/check'?'punishment.check':url.pathname==='/api/alts'?'alts.check':url.pathname==='/api/alts/history'?'alts.history':'monitoring.list';
+     const result=await botAction(env,a.session.sub,action,{username,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
+   }
+   if(url.pathname==='/api/monitoring'&&request.method==='POST'){
+     const body=await jsonBody(request);const result=await botAction(env,a.session.sub,'monitoring.set',{username:body.username,operation:body.operation,channelId:body.channelId,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
+   }
    if(url.pathname==='/api/punishments/types'&&request.method==='GET'){
      const result=await botAction(env,a.session.sub,'punishment.types',{sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:403});
    }
