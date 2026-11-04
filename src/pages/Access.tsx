@@ -8,11 +8,30 @@ const ranks:Rank[]=['OWNER','MANAGER','SRADMIN','ADMIN','SRMOD','MODERATOR'];
 const groups:Record<string,string[]>={'Access & roles':['panel.access','access.read','roles.manage','permissions.manage','overrides.manage','sessions.manage','audit.read'],'Players & logs':['players.view','logs.view'],'Punishments':['punishment.view','punishment.execute','alts.view','alts.history.view'],'Rollbacks':['rollback.view','rollback.execute','unrollback.execute'],'Refunds':['refund.view','refund.execute'],'Monitoring':['monitoring.view','monitoring.manage']};
 const presets:Record<Rank,string[]>={MODERATOR:['panel.access','players.view','logs.view','punishment.view'],SRMOD:['panel.access','players.view','logs.view','punishment.view','punishment.execute','monitoring.view'],ADMIN:['panel.access','players.view','logs.view','punishment.view','punishment.execute','monitoring.view','rollback.view','rollback.execute'],SRADMIN:['panel.access','players.view','logs.view','punishment.view','punishment.execute','monitoring.view','rollback.view','rollback.execute','unrollback.execute','refund.view','refund.execute'],MANAGER:['panel.access','access.read','roles.manage','permissions.manage','overrides.manage','sessions.manage','audit.read','players.view','logs.view','punishment.view','punishment.execute','rollback.view','rollback.execute','unrollback.execute','refund.view','refund.execute','monitoring.view','monitoring.manage'],OWNER:[]};
 let policyCache: Policy | null = null;
+let policyAccount: string | null = null;
+export function primeStaffPolicy(account: string | null) {
+ if (policyAccount === account) return;
+ policyAccount = account;
+ policyCache = null;
+ if (!account) return;
+ try {
+  const cached = sessionStorage.getItem(`jackpotmc:staff-config:v1:${account}`);
+  if (cached) policyCache = JSON.parse(cached) as Policy;
+ } catch { /* Cache is optional. */ }
+ void fetch('/api/access',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
+  if(body?.ok && body.data?.ranks && policyAccount===account){
+   policyCache=body.data as Policy;
+   try{sessionStorage.setItem(`jackpotmc:staff-config:v1:${account}`,JSON.stringify(policyCache))}catch{}
+   window.dispatchEvent(new CustomEvent('jackpotmc:staff-config'));
+  }
+ }).catch(()=>{});
+}
 export default function Access(){
  const {me}=useAuth();const permissions=me?.staff.permissions||[];const can=(p:string)=>permissions.includes(p);
+ useEffect(()=>{const sync=()=>setPolicy(policyCache);window.addEventListener('jackpotmc:staff-config',sync);return()=>window.removeEventListener('jackpotmc:staff-config',sync)},[]);
  const [tab,setTab]=useState('ranks'),[rank,setRank]=useState<Rank>('MANAGER'),[policy,setPolicy]=useState<Policy|null>(policyCache),[selected,setSelected]=useState<string[]>([]),[reason,setReason]=useState(''),[roleId,setRoleId]=useState(''),[mappedRank,setMappedRank]=useState('MANAGER'),[userId,setUserId]=useState(''),[mode,setMode]=useState('NONE'),[grants,setGrants]=useState<string[]>([]),[denies,setDenies]=useState<string[]>([]),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(false),[audit,setAudit]=useState<unknown>(null);
  async function call(path:string,body?:object):Promise<ApiResult>{const response=await fetch(path,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'Content-Type':'application/json','X-CSRF-Token':me?.csrf||''}:{},body:body?JSON.stringify(body):undefined});const data=await response.json() as ApiResult;if(!response.ok||!data.ok)throw new Error(data.message||data.code||'Request failed');return data;}
- async function load(){if(!can('access.read'))return;setBusy(true);try{const response=await call('/api/access');policyCache=response.data as Policy;setPolicy(policyCache);setNotice('Configuration loaded');setError(false)}catch(e){setNotice(String(e));setError(true)}finally{setBusy(false)}}
+ async function load(){if(!can('access.read'))return;setBusy(true);try{const response=await call('/api/access');policyCache=response.data as Policy;setPolicy(policyCache);if(policyAccount){try{sessionStorage.setItem(`jackpotmc:staff-config:v1:${policyAccount}`,JSON.stringify(policyCache))}catch{}}setNotice('Configuration loaded');setError(false)}catch(e){setNotice(String(e));setError(true)}finally{setBusy(false)}}
  useEffect(()=>{if(can('access.read'))void load()},[me?.user.id]);
  useEffect(()=>{if(policy?.ranks[rank])setSelected([...policy.ranks[rank].permissions])},[policy,rank]);
  async function save(path:string,body:object){setBusy(true);try{await call(path,{...body,reason});setNotice('Saved and audited successfully');setError(false);setReason('');if(can('access.read')){const response=await call('/api/access');policyCache=response.data as Policy;setPolicy(policyCache)}}catch(e){setNotice(String(e));setError(true)}finally{setBusy(false)}}
