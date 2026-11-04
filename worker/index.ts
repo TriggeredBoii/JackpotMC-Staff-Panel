@@ -80,7 +80,7 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
      const isMonitor=url.pathname==='/api/monitoring';
      if(!isMonitor&&!/^[A-Za-z0-9_]{3,16}$/.test(username))return Response.json({ok:false,message:'Invalid Minecraft username.'},{status:400});
      const action=url.pathname==='/api/punishments/check'?'punishment.check':url.pathname==='/api/alts'?'alts.check':url.pathname==='/api/alts/history'?'alts.history':'monitoring.list';
-     const result=await botAction(env,a.session.sub,action,{username,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
+     const result=await botAction(env,a.session.sub,action,{username,sessionIssuedAt:a.session.iat},action==='alts.history'?12_000:undefined);return Response.json(result,{status:result.ok?200:403});
    }
    if(url.pathname==='/api/monitoring/history'&&request.method==='GET'){
      const username=url.searchParams.get('username')||'';
