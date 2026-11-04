@@ -77,6 +77,9 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    if(url.pathname==='/api/punishments/types'&&request.method==='GET'){
      const result=await botAction(env,a.session.sub,'punishment.types',{sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:403});
    }
+   if(url.pathname==='/api/punishments/categories'&&request.method==='GET'){
+     const result=await botAction(env,a.session.sub,'punishment.categories',{sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:403});
+   }
    if(url.pathname==='/api/punishments/execute'&&request.method==='POST'){
      const body=await jsonBody(request); const result=await botAction(env,a.session.sub,'punishment.execute',{username:body.username,type:body.type,sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:400});
    }
