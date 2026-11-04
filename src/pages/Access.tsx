@@ -34,7 +34,19 @@ export default function Access(){
 
 function AuditViewer({data}:{data:unknown}){
  const [filter,setFilter]=useState('');
+ const [includeReads,setIncludeReads]=useState(false);
  const records=Array.isArray(data)?data:(data&&typeof data==='object'?Object.values(data as Record<string,unknown>).find(Array.isArray) as unknown[]|undefined:undefined)||[];
- const entries=records.filter((entry)=>JSON.stringify(entry).toLowerCase().includes(filter.toLowerCase()));
- return <div className="audit-viewer"><div className="audit-toolbar"><span>{entries.length} audit records</span><input aria-label="Search audit records" placeholder="Search actors, actions, IDs or reasons" value={filter} onChange={e=>setFilter(e.target.value)}/></div><div className="audit-list">{entries.map((entry,i)=>{const item=(entry&&typeof entry==='object'?entry:{value:entry}) as Record<string,unknown>;const action=String(item.action||item.type||item.event||'Audit event');const actor=String(item.actor||item.actorId||item.discordId||item.userId||'Unknown actor');const date=item.timestamp||item.createdAt||item.time;const reason=String(item.reason||item.message||'No reason recorded');return <details className="audit-entry" key={i}><summary><strong>{action}</strong><span>{actor}</span><small>{date?String(date):'Time not provided'}</small></summary><p>{reason}</p><pre>{JSON.stringify(item,null,2)}</pre></details>})}{entries.length===0&&<p>No matching records.</p>}</div></div>
+ const parsed=records.map((raw,i)=>{let item:Record<string,unknown>={};try{item=(typeof raw==='string'?JSON.parse(raw):raw) as Record<string,unknown>}catch{item={message:String(raw)}}
+ const actor=item.actor&&typeof item.actor==='object'?item.actor as Record<string,unknown>:{};
+ const actorName=String(actor.minecraftUsername||actor.discordUsername||actor.discordId||item.actorId||item.discordId||item.userId||(typeof item.actor==='string'?item.actor:'Unknown actor'));
+ const action=String(item.action||item.type||item.event||'Audit event');
+ const rawTime=item.timestamp||item.createdAt||item.time;const numeric=Number(rawTime);
+ const time=Number.isFinite(numeric)&&numeric>0?new Date(numeric<1e11?numeric*1000:numeric):new Date(String(rawTime||''));
+ const date=Number.isNaN(time.getTime())?'Unknown time':time.toLocaleString();
+ const payload=item.payload&&typeof item.payload==='object'?item.payload as Record<string,unknown>:{};
+ const reason=String(item.reason||payload.reason||item.message||'No reason supplied');
+ return {item,i,action,actorName,date,reason,search:JSON.stringify(item).toLowerCase()};});
+ const readActions=new Set(['staff.status','access.read','audit.read','punishment.types','punishment.history']);
+ const entries=parsed.filter(x=>(includeReads||!readActions.has(x.action))&&x.search.includes(filter.toLowerCase()));
+ return <div className="audit-viewer"><div className="audit-toolbar"><span><strong>{entries.length}</strong> records shown</span><input aria-label="Search audit records" placeholder="Search actor, action, ID or reason" value={filter} onChange={e=>setFilter(e.target.value)}/><label className="audit-toggle"><input type="checkbox" checked={includeReads} onChange={e=>setIncludeReads(e.target.checked)}/> Include routine reads</label></div><div className="audit-list">{entries.map(({item,i,action,actorName,date,reason})=><details className="audit-entry" key={i}><summary><span className="audit-action">{action.replaceAll('.',' · ')}</span><span className="audit-actor">{actorName}</span><time>{date}</time></summary><div className="audit-details"><p><strong>Reason:</strong> {reason}</p><p><strong>Action ID:</strong> {String(item.actionId||'Not recorded')}</p><details><summary>Technical details</summary><pre>{JSON.stringify(item,null,2)}</pre></details></div></details>)}{entries.length===0&&<p>No matching records. Enable routine reads to see status checks.</p>}</div></div>;
 }

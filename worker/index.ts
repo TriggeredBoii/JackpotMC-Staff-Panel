@@ -80,6 +80,20 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    if(url.pathname==='/api/punishments/execute'&&request.method==='POST'){
      const body=await jsonBody(request); const result=await botAction(env,a.session.sub,'punishment.execute',{username:body.username,type:body.type,sessionIssuedAt:a.session.iat}); return Response.json(result,{status:result.ok?200:400});
    }
+   if(url.pathname==='/api/punishments/history'&&request.method==='GET'){
+     const username=url.searchParams.get('username')||'';
+     const offset=Number(url.searchParams.get('offset')||0);
+     if(!/^[A-Za-z0-9_]{3,16}$/.test(username)||!Number.isInteger(offset)||offset<0||offset>100000)
+       return Response.json({ok:false,message:'Invalid history request.'},{status:400});
+     const result=await botAction(env,a.session.sub,'punishment.history',{username,offset,sessionIssuedAt:a.session.iat});
+     return Response.json(result,{status:result.ok?200:403});
+   }
+   if(url.pathname==='/api/punishments/unpunish'&&request.method==='POST'){
+     const body=await jsonBody(request);
+     if(typeof body.username!=='string'||typeof body.type!=='string')return Response.json({ok:false,message:'Invalid request.'},{status:400});
+     const result=await botAction(env,a.session.sub,'punishment.unpunish',{username:body.username,type:body.type,sessionIssuedAt:a.session.iat});
+     return Response.json(result,{status:result.ok?200:400});
+   }
    return Response.json({error:'not_found'},{status:404});
  }
 // Public pages and static frontend assets
