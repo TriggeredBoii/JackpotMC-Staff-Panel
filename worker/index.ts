@@ -61,6 +61,7 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    const management:Record<string,string>={
      '/api/access':'access.read','/api/audit':'audit.read',
      '/api/access/roles':'roles.set','/api/access/ranks':'ranks.set',
+     '/api/access/create-rank':'ranks.create','/api/access/delete-rank':'ranks.delete',
      '/api/access/overrides':'overrides.set','/api/access/revoke':'sessions.revoke'
    };
    const managementAction=management[url.pathname];
@@ -80,6 +81,12 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
      if(!isMonitor&&!/^[A-Za-z0-9_]{3,16}$/.test(username))return Response.json({ok:false,message:'Invalid Minecraft username.'},{status:400});
      const action=url.pathname==='/api/punishments/check'?'punishment.check':url.pathname==='/api/alts'?'alts.check':url.pathname==='/api/alts/history'?'alts.history':'monitoring.list';
      const result=await botAction(env,a.session.sub,action,{username,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
+   }
+   if(url.pathname==='/api/monitoring/history'&&request.method==='GET'){
+     const username=url.searchParams.get('username')||'';
+     if(!/^[A-Za-z0-9_]{3,16}$/.test(username))return Response.json({ok:false,message:'Invalid Minecraft username'},{status:400});
+     const result=await botAction(env,a.session.sub,'monitoring.history',{username,sessionIssuedAt:a.session.iat});
+     return Response.json(result,{status:result.ok?200:403,headers:{'Cache-Control':'no-store'}});
    }
    if(url.pathname==='/api/monitoring'&&request.method==='POST'){
      const body=await jsonBody(request);const result=await botAction(env,a.session.sub,'monitoring.set',{username:body.username,operation:body.operation,channelId:body.channelId,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
