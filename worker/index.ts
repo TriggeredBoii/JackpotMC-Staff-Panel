@@ -84,8 +84,9 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
    }
    if(url.pathname==='/api/monitoring/history'&&request.method==='GET'){
      const username=url.searchParams.get('username')||'';
-     if(!/^[A-Za-z0-9_]{3,16}$/.test(username))return Response.json({ok:false,message:'Invalid Minecraft username'},{status:400});
-     const result=await botAction(env,a.session.sub,'monitoring.history',{username,sessionIssuedAt:a.session.iat});
+     const uuid=url.searchParams.get('uuid')||'';
+     if(!/^[A-Za-z0-9_]{3,16}$/.test(username)&&!/^[a-fA-F0-9-]{36}$/.test(uuid))return Response.json({ok:false,message:'Invalid account identifier'},{status:400});
+     const result=await botAction(env,a.session.sub,'monitoring.history',{username,uuid,sessionIssuedAt:a.session.iat});
      return Response.json(result,{status:result.ok?200:403,headers:{'Cache-Control':'no-store'}});
    }
    if(url.pathname==='/api/monitoring'&&request.method==='POST'){
