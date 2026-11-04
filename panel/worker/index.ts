@@ -81,6 +81,12 @@ if(url.pathname==='/internal/bot/result'&&request.method==='POST'){
      const action=url.pathname==='/api/punishments/check'?'punishment.check':url.pathname==='/api/alts'?'alts.check':url.pathname==='/api/alts/history'?'alts.history':'monitoring.list';
      const result=await botAction(env,a.session.sub,action,{username,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
    }
+   if(url.pathname==='/api/monitoring/history'&&request.method==='GET'){
+     const uuid=url.searchParams.get('uuid')||'';
+     if(!/^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(uuid))return Response.json({ok:false,message:'Invalid Minecraft UUID.'},{status:400});
+     const result=await botAction(env,a.session.sub,'monitoring.history',{uuid,sessionIssuedAt:a.session.iat},12_000);
+     return Response.json(result,{status:result.ok?200:403});
+   }
    if(url.pathname==='/api/monitoring'&&request.method==='POST'){
      const body=await jsonBody(request);const result=await botAction(env,a.session.sub,'monitoring.set',{username:body.username,operation:body.operation,channelId:body.channelId,sessionIssuedAt:a.session.iat});return Response.json(result,{status:result.ok?200:403});
    }
